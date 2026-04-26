@@ -29,10 +29,8 @@ const yellow = "\x1b[93m";
 		const info = await api.items[item.itemId]();
 		const name = info.item.name;
 
-		const avg = parseInt(stats.avg30d).toFixed(0);
+		const avg = parseInt(stats.avg30d || 0).toFixed(0);
 		totalHc += avg*item.quantity;
-
-		if (avg <= parseInt(item.price)) continue;
 
 		output += `${gray}${name} x${item.quantity}${reset} ${green}${avg}${reset}\n`;
 

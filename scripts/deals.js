@@ -1,14 +1,8 @@
-import { api } from "./api.js";
+import { api, findClaimByName } from "./api.js";
+import { getMarketPrice } from "./marketcache.js"
 
-const myId = "648518346355002837";
-
-let buyLoc = process.argv[2];
-if (buyLoc == "-") buyLoc = undefined;
-let sellLoc = process.argv[3] || "Freeport";
-if (sellLoc == "-") sellLoc = undefined;
-
-let min_ppd = process.argv[5] || 0
-let minPrice = process.argv[4] || 500;
+const claimName = process.argv[2] || "Freeport";
+const anchorPortName = process.argv[3] || "Freeport";
 
 const red = "\x1b[31m";
 const green = "\x1b[32m";
@@ -16,58 +10,97 @@ const reset = "\x1b[0m";
 const gray = "\x1b[2m";
 const yellow = "\x1b[93m";
 
-console.log(buyLoc?.toUpperCase(), "->", sellLoc?.toUpperCase());
-
 (async () => {
-  let deals = await api.market.deals();
-  deals = deals.arbitrage;
+	let claim = undefined;
+	let anchorPort = undefined;
+	try {
+		claim = await findClaimByName(claimName);
+		anchorPort = await findClaimByName(anchorPortName);
+	} catch (err) { 
+		console.log(err.message);
+		process.exit(1);
+	}
+	
+	// get the listings for the claim:
+	async	function getListings(claim, side) {
+		let listings = [];
+		let market;
+		let page = 0;
+		do {
+			market = await api.claims[claim.entityId].market.listings({
+				params: {
+					page,
+					limit: 200,
+					side
+				} 
+			});
+			market.listings.forEach(o => listings.push(o));
+			page++;
+		}
+		while (market.listings.length);
 
-  if (sellLoc) {
-    deals = deals.filter((d) => d.sellLocation === sellLoc);
-  }
+		return listings;
+	}
 
-  if (buyLoc) {
-    deals = deals.filter((d) => d.buyLocation === buyLoc);
-  }
+	let claimListings = await getListings(claim, "sell");
+	let compareListings = await getListings(anchorPort, "sell");
 
-  console.log(gray);
-  console.log("#".repeat(30));
-  for (let item of deals) {
-    const cost = item.buyPrice * item.buyQuantity;
-    const sellQuantity =
-      item.buyQuantity > item.sellQuantity
-        ? item.sellQuantity
-        : item.buyQuantity;
-    const revenue = item.sellPrice * sellQuantity;
-    const net = revenue - cost;
-    const percentProfit = ((net / revenue) * 100).toFixed(1);
+	let i = 0;
+	let output = [];
+	output.push({ name: "NAME", price: "$$", comparison: "CMP", qty: "QTY", potentialProfit: "NET", vol: "VOL" });
 
-    const dx = item.buyLocationX - item.sellLocationX;
-    const dz = item.buyLocationZ - item.sellLocationZ;
-    const distance = Math.sqrt(dx ** 2 + dz ** 2).toFixed(0);
+	// get all the price data per item:
+	for (let item of claimListings) {
+		
+		// skip the item if it is above market avg:
+		let stats = await getMarketPrice(item.itemId);
+		const avg = parseInt(stats.avg30d).toFixed(0);
+		if (item.price > avg) continue
 
-    const ppd = (revenue / distance).toFixed(3);
- 
-    if (net < minPrice) continue;
-    if (ppd < min_ppd) continue;
+		// check the anchor port to see if there is a similar order:
+		const comparableItem = compareListings.find(i => i.itemId === item.itemId);
 
-    console.log(
-      item.buyLocation.toUpperCase(),
-      "->",
-      item.sellLocation.toUpperCase(),
-    );
+		const comparePrice = comparableItem?.price;
 
-    console.log(`R${item.buyRegionId} to R${item.sellRegionId}`);
-    console.log("distance: ", distance);
+		if (item.price - (comparePrice || item.price + 1) >= 0) continue;
 
-    console.log(reset);
-    console.log("item: ", item.itemName);
-    console.log("buy count: ", item.buyQuantity);
-    console.log(red, "buy total: ", cost);
-    console.log(green, "profit: ", net);
-    console.log(reset, "percent profit: ", `${percentProfit}%`);
-    console.log(yellow, "profit per distance: ", ppd, reset);
-    console.log(gray);
-    console.log("#".repeat(30));
-  }
+		const potentialProfit = item.quantity*Math.abs((item.price - (comparePrice || 0)));
+
+		output.push({ name: `${item.itemName} (T${item.itemTier})`, price: item.price, comparison: comparableItem?.price || "-", qty: item.quantity, potentialProfit});
+
+		//i+=1
+		//const perc = (i * 100 / listings.length).toFixed(0);
+		//process.stdout.write("\r");
+		//process.stdout.write(`${perc}%`);
+	}
+
+	output = output.sort((a, b) => (a.potentialProfit - b.potentialProfit));
+
+	console.log("");
+
+	// print each item's stats:
+	const colors = [ gray, red, yellow, reset, green ];
+	let cindex = 0;
+
+	function printCell(item, key, width=7) { 
+		let cell = item[key];
+		if (cell.length > width) cell = cell.substring(0, width);
+		let color = colors[cindex];
+
+		process.stdout.write(`${reset}${color}${cell}`);
+		process.stdout.write(" ".repeat(width - cell.toString().length)); 
+
+		cindex++;
+		if (cindex >= colors.length) cindex = 0;
+	}
+
+	for (let item of output) {
+		printCell(item, "name", 45);
+		printCell(item, "price");
+		printCell(item, "comparison");
+		printCell(item, "qty");
+		printCell(item, "potentialProfit");
+		process.stdout.write(`${reset}\n`);
+	}
+
 })();

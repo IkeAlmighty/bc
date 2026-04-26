@@ -38,7 +38,7 @@ const yellow = "\x1b[93m";
 
 	let i = 0;
 	let output = [];
-	output.push({ name: "NAME", price: "PRICE", avg: "MKT VAL", qty: "QTY", potentialProfit: "PROFIT POTENTIAL" });
+	output.push({ name: "NAME", price: "$$", avg: "MKT", qty: "QTY", potentialProfit: "NET", vol: "VOL", percentDifference: "% Diff" });
 
 	// get all the price data per item:
 	for (let item of listings) {
@@ -47,8 +47,13 @@ const yellow = "\x1b[93m";
 
 		if (!stats.avg30d || avg <= parseInt(item.price)) continue;
 		const potentialProfit = item.quantity*(avg - item.price)
+		const releaseDate = new Date("2026-2-20");
+		const today = new Date();
+		const diff = (today - releaseDate) / 1000 / 60 / 60 / 24;
+		const vol = (stats.totalVolume / diff).toFixed(2);
+		const percentDifference = ((avg - item.price) * 100 / avg).toFixed(2);
 
-		output.push({ name: `${item.itemName} (T${item.itemTier})`, price: item.price, avg, qty: item.quantity, potentialProfit });
+		output.push({ name: `${item.itemName} (T${item.itemTier})`, price: item.price, avg, qty: item.quantity, potentialProfit, vol, percentDifference});
 
 		//i+=1
 		//const perc = (i * 100 / listings.length).toFixed(0);
@@ -56,21 +61,21 @@ const yellow = "\x1b[93m";
 		//process.stdout.write(`${perc}%`);
 	}
 
-	output = output.sort((a, b) => a.potentialProfit - b.potentialProfit);
+	output = output.sort((a, b) => (a.potentialProfit / b.potentialProfit) - (b.percentDifference  / a.percentDifference) - (b.vol / a.vol));
 
 	console.log("");
 
 	// print each item's stats:
-	const colors = [ gray, red, yellow, reset, green ];
+	const colors = [ gray, red, yellow, reset, green, reset, reset];
 	let cindex = 0;
 
-	function printCell(item, key, width=10) { 
+	function printCell(item, key, width=7) { 
 		let cell = item[key];
 		if (cell.length > width) cell = cell.substring(0, width);
 		let color = colors[cindex];
 
 		process.stdout.write(`${reset}${color}${cell}`);
-		process.stdout.write(" ".repeat(width - cell.length)); 
+		process.stdout.write(" ".repeat(width - cell.toString().length)); 
 
 		cindex++;
 		if (cindex >= colors.length) cindex = 0;
@@ -82,6 +87,8 @@ const yellow = "\x1b[93m";
 		printCell(item, "avg");
 		printCell(item, "qty");
 		printCell(item, "potentialProfit");
+		printCell(item, "vol");
+		printCell(item, "percentDifference");
 		process.stdout.write(`${reset}\n`);
 	}
 
