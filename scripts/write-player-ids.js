@@ -1,7 +1,7 @@
 import { appendFileSync } from "fs";
 import { api } from "./api.js";
-
-const myId = "648518346355002837";
+import dotenv from 'dotenv';
+dotenv.config()
 
 const red = "\x1b[31m";
 const green = "\x1b[32m";

@@ -1,9 +1,11 @@
 import { api, findClaimByName } from "./api.js";
 import { getMarketPrice } from "./marketcache.js"
+import dotenv from 'dotenv';
+dotenv.config()
 
-const myId = "648518346355002837";
+const { DEFAULT_PORT } = process.env
 
-const claimName = process.argv[2] || "Freeport";
+const claimName = process.argv[2] || DEFAULT_PORT;
 
 const red = "\x1b[31m";
 const green = "\x1b[32m";
@@ -47,7 +49,7 @@ const yellow = "\x1b[93m";
 
 		if (!stats.avg30d || avg <= parseInt(item.price)) continue;
 		const potentialProfit = item.quantity*(avg - item.price)
-		const releaseDate = new Date("2026-2-20");
+		const releaseDate = new Date("2026-11-13");
 		const today = new Date();
 		const diff = (today - releaseDate) / 1000 / 60 / 60 / 24;
 		const vol = (stats.totalVolume / diff).toFixed(2);

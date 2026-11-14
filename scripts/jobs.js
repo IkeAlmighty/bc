@@ -1,7 +1,11 @@
 import { api, findClaimByName } from "./api.js";
 import { getMarketPrice } from "./marketcache.js"
+import dotenv from 'dotenv';
+dotenv.config()
 
-const claimName = process.argv[2] || "Freeport";
+const { DEFAULT_PORT } = process.env
+
+const claimName = process.argv[2] || DEFAULT_PORT;
 
 const red = "\x1b[31m";
 const green = "\x1b[32m";

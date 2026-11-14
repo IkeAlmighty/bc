@@ -1,6 +1,8 @@
 import { api, getAllClaims } from "./api.js";
+import dotenv from 'dotenv';
+dotenv.config()
 
-const myId = "648518346355002837";
+const myId = process.env.PLAYER_ID;
 
 (async () => {
   const { collections } = await api.players[myId]["market-collections"]();

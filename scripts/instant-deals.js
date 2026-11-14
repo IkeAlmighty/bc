@@ -1,10 +1,12 @@
 import { api } from "./api.js";
 
-const myId = "648518346355002837";
+import dotenv from 'dotenv';
+dotenv.config()
+const { DEFAULT_PORT } = process.env
 
 let buyLoc = process.argv[2];
 if (buyLoc == "-") buyLoc = undefined;
-let sellLoc = process.argv[3] || "Freeport";
+let sellLoc = process.argv[3] || DEFAULT_PORT;
 if (sellLoc == "-") sellLoc = undefined;
 
 let min_ppd = process.argv[5] || 0

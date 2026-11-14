@@ -1,7 +1,9 @@
 import { api } from "./api.js";
 import { getMarketPrice } from "./marketcache.js"
+import dotenv from 'dotenv';
+dotenv.config()
 
-const myId = "648518346355002837";
+const myId = process.env.PLAYER_ID;
 
 const red = "\x1b[31m";
 const green = "\x1b[32m";
