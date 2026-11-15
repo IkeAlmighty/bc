@@ -1,11 +1,9 @@
-import { api, findClaimByName } from "./api.js";
+import { api } from "./api.js";
 import { getMarketPrice } from "./marketcache.js"
+import player from "./player.js"
+import claims from "./claims.js"
 import dotenv from 'dotenv';
 dotenv.config()
-
-const { DEFAULT_PORT } = process.env
-
-const claimName = process.argv[2] || DEFAULT_PORT;
 
 const red = "\x1b[31m";
 const green = "\x1b[32m";
@@ -13,20 +11,26 @@ const reset = "\x1b[0m";
 const gray = "\x1b[2m";
 const yellow = "\x1b[93m";
 
-(async () => {
-	let claim = undefined;
-	try {
-		claim = await findClaimByName(claimName);
-	} catch (err) { 
-		console.log(err.message);
-		process.exit(1);
-	}
-	
+async function getNearestMarketData() {
+	// first, get the player's location:
+	playerLocation = await player.getLocation()	
+
+	// then, get the nearest claim to location:
+	nearestClaim = await claims.getNearest(playerLocation);
+
+	// then, grab the market data!
+	marketData = await getMarketData(nearestClaim);
+
+	// then print it :)
+	printMarketData(marketData)
+}
+
+async function getMarketData({ entityId }) {
 	let listings = [];
 	let market;
 	let page = 0;
 	do {
-		market = await api.claims[claim.entityId].market.listings({
+		market = await api.claims[entityId].market.listings({
 			params: {
 				page,
 				limit: 200,
@@ -38,6 +42,10 @@ const yellow = "\x1b[93m";
 	}
 	while (market.listings.length);
 
+	return listings
+}
+
+function printMarketData(listings) {
 	let i = 0;
 	let output = [];
 	output.push({ name: "NAME", price: "$$", avg: "MKT", qty: "QTY", potentialProfit: "NET", vol: "VOL", percentDifference: "% Diff" });
@@ -93,5 +101,4 @@ const yellow = "\x1b[93m";
 		printCell(item, "percentDifference");
 		process.stdout.write(`${reset}\n`);
 	}
-
-})();
+}
